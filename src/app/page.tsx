@@ -7,7 +7,8 @@ import { Github, FileArchive, Terminal as TerminalIcon, Download, Copy, Check, S
 import { processZipFile } from '@/lib/zip-processor';
 import { generateDocs, processGithubUrl } from '@/app/actions/generate';
 import { TerminalLoader } from '@/components/terminal-loader';
-import { Header } from '@/components/header';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
 import { RepoPicker } from '@/components/repo-picker';
 import { CopyButton } from '@/components/ui/copy-button';
 import { HistoryList } from '@/components/history-list';
@@ -203,7 +204,7 @@ export default function PreamblePage() {
                 </section>
 
                 {/* 4. History */}
-                <section className="pt-20">
+                <section id="history-section" className="pt-20 scroll-mt-20">
                   <HistoryList onSelect={setResult} />
                 </section>
               </div>
@@ -277,6 +278,7 @@ export default function PreamblePage() {
           <AnimatePresence>
             {isGenerating && <TerminalLoader logs={logs} />}
           </AnimatePresence>
+          <Footer />
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] mt-16 overflow-hidden border-t border-black">

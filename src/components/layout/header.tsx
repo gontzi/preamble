@@ -2,8 +2,7 @@
 
 import { signOut, signIn } from 'next-auth/react';
 import { Sparkles, Github, LogOut, User } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
     session: any;
@@ -13,7 +12,7 @@ export function Header({ session }: HeaderProps) {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 border-b border-black bg-white">
             <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-4 group cursor-pointer">
+                <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                     <div className="p-1 border border-black transition-colors duration-200 group-hover:bg-[#FF3333] group-hover:text-white">
                         <Sparkles className="transition-colors duration-200" size={18} strokeWidth={1.5} />
                     </div>
@@ -21,9 +20,20 @@ export function Header({ session }: HeaderProps) {
                 </div>
 
                 <nav className="hidden md:flex items-center gap-8">
-                    <a href="#" className="text-xs font-mono uppercase tracking-widest text-black/60 hover:text-black transition-colors">Documentation</a>
-                    <a href="#" className="text-xs font-mono uppercase tracking-widest text-black/60 hover:text-black transition-colors">Templates</a>
-                    <a href="#" className="text-xs font-mono uppercase tracking-widest text-black/60 hover:text-black transition-colors">Pricing</a>
+                    <a href="https://github.com/gontzi/preamble" target="_blank" rel="noopener noreferrer" className="text-sm font-mono uppercase text-black hover:text-[#FF3333] transition-colors">
+                        Source
+                    </a>
+                    <a href="/#history-section" className="text-sm font-mono uppercase text-black hover:text-[#FF3333] transition-colors">
+                        History
+                    </a>
+                    <a
+                        href="https://buymeacoffee.com/gontzi"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-[#FF3333] text-white rounded-none px-4 py-2 font-bold tracking-widest text-xs hover:bg-black transition-colors"
+                    >
+                        SPONSOR
+                    </a>
                 </nav>
 
                 <div className="flex items-center gap-4">
@@ -51,7 +61,7 @@ export function Header({ session }: HeaderProps) {
                         <Button
                             variant="default"
                             onClick={() => signIn('github')}
-                            className="h-10 px-6"
+                            className="h-10 px-6 rounded-none text-xs tracking-widest uppercase font-bold"
                         >
                             <Github className="mr-2" size={14} />
                             Sign In

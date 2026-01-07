@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Forzamos el uso de la Service Role Key. Si no existe, mejor que falle a que use la Anon por error.
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Note: For server-side operations (actions), prefer using SUPABASE_SERVICE_ROLE_KEY if available
-// for bypassing RLS if needed, or stick to ANON key and RLS policies.
-// Here we init a simple client.
-export const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseKey) {
+    throw new Error("Falta la SUPABASE_SERVICE_ROLE_KEY en .env.local");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        persistSession: false, // CRUCIAL para uso en servidor
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+    }
+});
