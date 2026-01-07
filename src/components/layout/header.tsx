@@ -14,7 +14,7 @@ export function Header({ session }: HeaderProps) {
             <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                     <div className="p-1 border border-black transition-colors duration-200 group-hover:bg-[#FF3333] group-hover:text-white">
-                        <Sparkles className="transition-colors duration-200" size={18} strokeWidth={1.5} />
+                        <img src="/isotipo-favicon.png" alt="Logo PREAMBLE" className="w-6 h-6 transition-all duration-200 group-hover:brightness-0 group-hover:invert" />
                     </div>
                     <span className="font-bold tracking-[0.2em] text-xl text-black uppercase">PREAMBLE</span>
                 </div>

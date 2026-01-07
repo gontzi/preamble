@@ -19,8 +19,11 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-    title: 'PREAMBLE | AI Editorial Documentation',
+    title: 'PREAMBLE by Gontzi',
     description: 'Precision engineering for technical documentation in a swiss editorial style.',
+    icons: {
+        icon: '/isotipo-favicon.png',
+    },
 };
 
 export default function RootLayout({
