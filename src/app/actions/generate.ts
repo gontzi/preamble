@@ -3,8 +3,9 @@
 import OpenAI from 'openai';
 import { Octokit } from 'octokit';
 import { auth } from '@/auth';
+import { supabase } from '@/lib/supabase';
 
-export async function generateDocs(context: string): Promise<string> {
+export async function generateDocs(context: string, repoName?: string): Promise<{ content: string; savedToDb: boolean }> {
     console.log('🏁 Iniciando proceso de generación de IA con Groq/Llama3...');
 
     // Truncar contexto para evitar errores de payload y mejorar latencia
@@ -59,7 +60,27 @@ export async function generateDocs(context: string): Promise<string> {
         }
 
         console.log('✅ Documentación generada con éxito.');
-        return text;
+
+        let savedToDb = false;
+        const session: any = await auth();
+
+        if (session?.user?.email && repoName) {
+            console.log('💾 Guardando en Supabase para:', session.user.email);
+            const { error } = await supabase.from('generated_docs').insert({
+                user_email: session.user.email,
+                repo_name: repoName,
+                content: text,
+            });
+
+            if (error) {
+                console.error('❌ Error guardando en DB:', error);
+            } else {
+                savedToDb = true;
+                console.log('✅ Guardado en DB correctamente.');
+            }
+        }
+
+        return { content: text, savedToDb };
     } catch (error: any) {
         console.error('❌ Error CRÍTICO en Groq:', error);
         throw new Error(`Fallo en IA: ${error.message || 'Error desconocido'}`);

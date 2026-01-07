@@ -9,6 +9,8 @@ import { generateDocs, processGithubUrl } from '@/app/actions/generate';
 import { TerminalLoader } from '@/components/terminal-loader';
 import { Header } from '@/components/header';
 import { RepoPicker } from '@/components/repo-picker';
+import { CopyButton } from '@/components/ui/copy-button';
+import { HistoryList } from '@/components/history-list';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -52,10 +54,10 @@ export default function PreamblePage() {
       addLog(`Extracted context size: ${(context.length / 1024).toFixed(2)} KB`);
 
       addLog('Sending context to Gemini 1.5 Flash...');
-      const markdown = await generateDocs(context);
+      const { content } = await generateDocs(context, file.name);
 
       addLog('Documentation generated successfully.');
-      setResult(markdown);
+      setResult(content);
     } catch (error: any) {
       addLog(`Error: ${error.message}`);
     } finally {
@@ -77,11 +79,12 @@ export default function PreamblePage() {
       const context = await processGithubUrl(targetUrl);
       addLog(`Repository context successfully built. Bytes: ${context.length}`);
 
+      const repoName = targetUrl.split('/').slice(-2).join('/');
       addLog('Refining documentation with AI...');
-      const markdown = await generateDocs(context);
+      const { content } = await generateDocs(context, repoName);
 
       addLog('Generation complete.');
-      setResult(markdown);
+      setResult(content);
     } catch (error: any) {
       addLog(`Error: ${error.message}`);
     } finally {
@@ -198,6 +201,11 @@ export default function PreamblePage() {
                     />
                   </div>
                 </section>
+
+                {/* 4. History */}
+                <section className="pt-20">
+                  <HistoryList onSelect={setResult} />
+                </section>
               </div>
             ) : (
               <div className="space-y-12">
@@ -280,24 +288,18 @@ export default function PreamblePage() {
                 Output Stream / README.md
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={copyToClipboard}
-                  className="h-8 w-8"
-                  title="Copy to clipboard"
-                >
-                  {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} strokeWidth={1.5} />}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={downloadMd}
-                  className="h-8 w-8"
-                  title="Download .md"
-                >
-                  <Download size={14} strokeWidth={1.5} />
-                </Button>
+                <div className="flex gap-2">
+                  <CopyButton text={result || ''} className="h-8 w-20" />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={downloadMd}
+                    className="h-8 w-8"
+                    title="Download .md"
+                  >
+                    <Download size={14} strokeWidth={1.5} />
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="flex-1 overflow-auto p-8 font-mono text-[13px] selection:bg-black selection:text-white">
@@ -306,7 +308,8 @@ export default function PreamblePage() {
                 style={vscDarkPlus}
                 customStyle={{ background: 'transparent', padding: 0 }}
               >
-                {result}
+
+                {result || ''}
               </SyntaxHighlighter>
             </div>
           </div>
