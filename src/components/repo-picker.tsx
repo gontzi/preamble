@@ -18,13 +18,18 @@ export function RepoPicker({ onSelect, isGenerating, selectedUrl }: RepoPickerPr
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
     useEffect(() => {
         async function loadRepos() {
             try {
                 setLoading(true);
-                const data = await getUserRepos(1, 8);
+                // Fetch 10 items per page
+                const data = await getUserRepos(page, 10);
                 setRepos(data);
+                // Simple heuristic: if we got less than 10, no more pages
+                setHasMore(data.length === 10);
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -32,12 +37,20 @@ export function RepoPicker({ onSelect, isGenerating, selectedUrl }: RepoPickerPr
             }
         }
         loadRepos();
-    }, []);
+    }, [page]);
 
     const filteredRepos = repos.filter(repo =>
         repo.name.toLowerCase().includes(search.toLowerCase()) ||
         (repo.language && repo.language.toLowerCase().includes(search.toLowerCase()))
     );
+
+    const handleNext = () => {
+        if (hasMore) setPage(p => p + 1);
+    };
+
+    const handlePrev = () => {
+        if (page > 1) setPage(p => p - 1);
+    };
 
     return (
         <div className="w-full">
@@ -68,81 +81,104 @@ export function RepoPicker({ onSelect, isGenerating, selectedUrl }: RepoPickerPr
                     <p className="text-red-600 font-mono text-xs uppercase font-bold tracking-widest">ERROR: {error}</p>
                 </div>
             ) : (
-                <div className="flex flex-col border-t border-black">
-                    <AnimatePresence mode="popLayout">
-                        {filteredRepos.map((repo) => {
-                            const isSelected = selectedUrl === repo.html_url;
-                            const isProcessing = isSelected && isGenerating;
+                <>
+                    <div className="flex flex-col border-t border-black">
+                        <AnimatePresence mode="popLayout">
+                            {filteredRepos.map((repo) => {
+                                const isSelected = selectedUrl === repo.html_url;
+                                const isProcessing = isSelected && isGenerating;
 
-                            return (
-                                <div
-                                    key={repo.id}
-                                    onClick={() => !isGenerating && onSelect(repo.html_url)}
-                                    className={`group w-full p-4 flex justify-between items-center border-b border-gray-200 bg-white hover:bg-gray-50 transition-colors cursor-pointer rounded-none relative overflow-hidden ${isGenerating && !isSelected ? 'opacity-30' : ''}`}
-                                >
-                                    {/* Linear Progress Indicator */}
-                                    {isProcessing && (
-                                        <motion.div
-                                            initial={{ x: '-100%' }}
-                                            animate={{ x: '100%' }}
-                                            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                                            className="absolute top-0 left-0 h-[2px] w-full bg-[#FF3333]"
-                                        />
-                                    )}
+                                return (
+                                    <div
+                                        key={repo.id}
+                                        onClick={() => !isGenerating && onSelect(repo.html_url)}
+                                        className={`group w-full p-4 flex justify-between items-center border-b border-gray-200 bg-white hover:bg-gray-50 transition-colors cursor-pointer rounded-none relative overflow-hidden ${isGenerating && !isSelected ? 'opacity-30' : ''}`}
+                                    >
+                                        {/* Linear Progress Indicator */}
+                                        {isProcessing && (
+                                            <motion.div
+                                                initial={{ x: '-100%' }}
+                                                animate={{ x: '100%' }}
+                                                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                                                className="absolute top-0 left-0 h-[2px] w-full bg-[#FF3333]"
+                                            />
+                                        )}
 
-                                    <div className="flex items-center gap-6">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <h4 className="font-serif text-xl text-black group-hover:text-[#FF3333] transition-colors duration-200">
-                                                    {repo.name}
-                                                </h4>
-                                                {repo.private && (
-                                                    <span className="border border-black px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-tighter">
-                                                        Private
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-4 font-mono text-[10px] text-gray-400 uppercase tracking-widest">
-                                                <span>{repo.full_name.split('/')[0]}</span>
-                                                {repo.language && (
-                                                    <>
-                                                        <span className="text-gray-200">/</span>
-                                                        <span>{repo.language}</span>
-                                                    </>
-                                                )}
+                                        <div className="flex items-center gap-6">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <h4 className="font-serif text-xl text-black group-hover:text-[#FF3333] transition-colors duration-200">
+                                                        {repo.name}
+                                                    </h4>
+                                                    {repo.private && (
+                                                        <span className="border border-black px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-tighter">
+                                                            Private
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-4 font-mono text-[10px] text-gray-400 uppercase tracking-widest">
+                                                    <span>{repo.full_name.split('/')[0]}</span>
+                                                    {repo.language && (
+                                                        <>
+                                                            <span className="text-gray-200">/</span>
+                                                            <span>{repo.language}</span>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-8">
-                                        <div className="hidden md:flex flex-col items-end">
-                                            <span className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">
-                                                Last Update
-                                            </span>
-                                            <span className="font-mono text-[10px] text-black uppercase tracking-tighter">
-                                                {formatDistanceToNow(new Date(repo.updated_at), { addSuffix: true })}
-                                            </span>
-                                        </div>
-
-                                        <div className="w-12 flex justify-end">
-                                            {isProcessing ? (
-                                                <span className="font-mono text-[10px] font-bold text-[#FF3333] animate-pulse">
-                                                    READING...
+                                        <div className="flex items-center gap-8">
+                                            <div className="hidden md:flex flex-col items-end">
+                                                <span className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">
+                                                    Last Update
                                                 </span>
-                                            ) : (
-                                                <ChevronRight
-                                                    size={18}
-                                                    strokeWidth={1.5}
-                                                    className="text-black opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all"
-                                                />
-                                            )}
+                                                <span className="font-mono text-[10px] text-black uppercase tracking-tighter">
+                                                    {formatDistanceToNow(new Date(repo.updated_at), { addSuffix: true })}
+                                                </span>
+                                            </div>
+
+                                            <div className="w-12 flex justify-end">
+                                                {isProcessing ? (
+                                                    <span className="font-mono text-[10px] font-bold text-[#FF3333] animate-pulse">
+                                                        READING...
+                                                    </span>
+                                                ) : (
+                                                    <ChevronRight
+                                                        size={18}
+                                                        strokeWidth={1.5}
+                                                        className="text-black opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all"
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex justify-between items-center border-t border-gray-200 mt-0 pt-4 px-4 bg-gray-50 border-b border-black pb-4">
+                        <button
+                            onClick={handlePrev}
+                            disabled={page === 1}
+                            className="font-mono text-xs uppercase tracking-widest font-bold hover:text-[#FF3333] disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Previous
+                        </button>
+                        <span className="font-mono text-xs text-black/40 uppercase tracking-widest">
+                            Page {page.toString().padStart(2, '0')}
+                        </span>
+                        <button
+                            onClick={handleNext}
+                            disabled={!hasMore}
+                            className="font-mono text-xs uppercase tracking-widest font-bold hover:text-[#FF3333] disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </>
             )}
 
             {!loading && filteredRepos.length === 0 && (
