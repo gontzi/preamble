@@ -113,7 +113,6 @@ export default function PreamblePage() {
     setCurrentDocId(item.id);
 
     // Scroll to editor (if currently viewing output, it might be separate view, but here prompt assumes we are in editor or can see it)
-    // Actually current layout hides inputs when result is shown?
     // "Al hacer clic en [EDIT]: Sube el contenido de ese historial al Editor Principal de la página (markdown state)."
     // "Hace scroll suave hacia arriba (al editor)."
 
@@ -138,19 +137,7 @@ export default function PreamblePage() {
             return item;
           });
           localStorage.setItem('preamble_guest_history', JSON.stringify(updatedData));
-
-          // Hacky way to refresh history list without context/events since it's local storage
-          // Component will re-render if we force it or if we signal update?
-          // For now, next page load or polling will fix it. 
-          // BUT HistoryList reads on mount/session change.
-          // We might need to force a refresh on HistoryList. 
-          // Since this component owns HistoryList, we can use a key or callback.
-          // However user moved HistoryList logic inside component.
-          // Let's rely on standard re-render behavior or page reload if forced.
-          // Ideally we'd use a context or lifting state, but to keep it simple with current setup:
-          window.location.reload(); // Simplest way to ensure Guest list updates immediately or we leave it stale until refresh
-          // Actually, let's avoid reload. The HistoryList doesn't listen to LS changes.
-          // We'll skip forcing list update for guest for now, "Saved" feedback is enough.
+          window.location.reload();
         }
       }
       setSaveFeedback("SAVED!");
@@ -226,111 +213,137 @@ export default function PreamblePage() {
           <Footer />
         </div>
       ) : (
-        // RESULT VIEW
-        <div className="flex flex-col lg:flex-row h-[calc(100dvh-64px)] mt-16 overflow-hidden border-t border-black">
-          {/* Left: Raw Markdown / Code */}
-          <div className="flex-1 border-r border-black bg-white overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-black bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-3 text-black text-[10px] font-mono tracking-[0.2em] uppercase font-bold">
-                <TerminalIcon size={14} className="text-[#FF3333]" strokeWidth={1.5} />
-                {currentDocId ? 'EDIT MODE' : 'Output Stream'} / README.md
+        // RESULT VIEW - SWISS REDESIGN
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="flex flex-col h-[calc(100vh-64px)] bg-white mt-16 border-t border-black fixed inset-0 top-[64px] z-40"
+        >
+          {/* STICKY TOOLBAR */}
+          <header className="h-12 border-b border-black flex items-center justify-between px-4 md:px-6 bg-white shrink-0">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 text-[10px] font-mono font-bold tracking-widest uppercase">
+                <span className="w-2 h-2 bg-[#FF3333] rounded-full animate-pulse" />
+                STATUS: GENERATED
               </div>
-              <div className="flex gap-2">
-                {currentDocId ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setResult(null);
-                        setCurrentDocId(null);
-                      }}
-                      className="h-8 text-[10px] font-mono uppercase"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveChanges}
-                      disabled={isSaving}
-                      className={isSaving ? "bg-gray-400" : "bg-[#FF3333] hover:bg-red-600"}
-                    >
-                      {saveFeedback || "SAVE CHANGES"}
-                    </Button>
-                  </>
-                ) : (
-                  <div className="flex gap-2">
-                    <CopyButton text={result || ''} className="h-8 w-20" />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={downloadMd}
-                      className="h-8 w-8"
-                      title="Download .md"
-                    >
-                      <Download size={14} strokeWidth={1.5} />
-                    </Button>
-                  </div>
-                )}
+              <div className="hidden md:flex items-center gap-2 text-[10px] font-mono tracking-widest uppercase text-neutral-500">
+                <span>LANG: DETECTED</span>
               </div>
             </div>
-            <div className="flex-1 overflow-auto p-0 font-mono text-[13px] selection:bg-black selection:text-white relative">
-              {/* EDITABLE TEXTAREA OVERLAY OR REPLACEMENT */}
+
+            <div className="flex items-center gap-4">
+              {currentDocId ? (
+                <>
+                  <button
+                    onClick={() => { setResult(null); setCurrentDocId(null); }}
+                    className="text-[10px] font-mono font-bold tracking-widest uppercase hover:text-[#FF3333] transition-colors"
+                  >
+                    [ CANCEL ]
+                  </button>
+                  <button
+                    onClick={handleSaveChanges}
+                    disabled={isSaving}
+                    className="text-[10px] font-mono font-bold tracking-widest uppercase hover:text-[#FF3333] transition-colors disabled:opacity-50"
+                  >
+                    {saveFeedback ? `[ ${saveFeedback} ]` : `[ SAVE CHANGES ]`}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={copyToClipboard}
+                    className="text-[10px] font-mono font-bold tracking-widest uppercase hover:text-[#FF3333] transition-colors flex items-center gap-2"
+                  >
+                    {copied ? '[ COPIED! ]' : '[ COPY MARKDOWN ]'}
+                  </button>
+                  <button
+                    onClick={downloadMd}
+                    className="text-[10px] font-mono font-bold tracking-widest uppercase hover:text-[#FF3333] transition-colors"
+                  >
+                    [ DOWNLOAD .MD ]
+                  </button>
+                  <div className="h-4 w-[1px] bg-black/20 mx-2" />
+                  <button
+                    onClick={() => setResult(null)}
+                    className="text-[10px] font-mono font-bold tracking-widest uppercase hover:text-[#FF3333] transition-colors"
+                  >
+                    [ CLOSE ]
+                  </button>
+                </>
+              )}
+            </div>
+          </header>
+
+          {/* DUAL PANEL CONTENT */}
+          <div className="flex-1 flex overflow-hidden">
+
+            {/* LEFT: RAW EDITOR */}
+            <div className="flex-1 border-r border-black bg-gray-50/50 relative group">
+              <div className="absolute top-0 left-0 px-3 py-1 bg-black text-white text-[9px] font-mono tracking-widest uppercase z-10">
+                RAW INPUT
+              </div>
               <textarea
                 value={result || ''}
                 onChange={(e) => setResult(e.target.value)}
-                className="w-full h-full p-8 resize-none focus:outline-none focus:ring-0 font-mono text-[13px] bg-transparent leading-relaxed"
+                className="w-full h-full p-8 md:p-12 resize-none focus:outline-none focus:bg-white transition-colors font-mono text-xs leading-relaxed text-neutral-800 custom-scrollbar"
                 spellCheck={false}
               />
             </div>
-          </div>
 
-          {/* Right: Preview */}
-          <div className="flex-1 bg-white overflow-auto p-12 lg:p-20 selection:bg-[#FF3333] selection:text-white">
-            <div className="max-w-3xl mx-auto prose prose-neutral font-serif">
-              <ReactMarkdown
-                components={{
-                  code({ node, inline, className, children, ...props }: any) {
-                    const match = /language-(\w+)/.exec(className || '');
-                    return !inline && match ? (
-                      <div className="border border-black bg-gray-50 p-4 font-mono text-xs my-6">
-                        <SyntaxHighlighter
-                          style={vscDarkPlus}
-                          language={match[1]}
-                          PreTag="div"
-                          customStyle={{ background: 'transparent', padding: 0 }}
-                          {...props}
-                        >
-                          {String(children).replace(/\n$/, '')}
-                        </SyntaxHighlighter>
-                      </div>
-                    ) : (
-                      <code className="bg-gray-100 px-1 py-0.5 font-mono text-xs" {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  h1: ({ children }) => <h1 className="text-5xl font-serif font-normal border-b border-black pb-4 mb-8">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-3xl font-serif font-normal mt-12 mb-6">{children}</h2>,
-                  p: ({ children }) => <p className="leading-relaxed mb-6">{children}</p>,
-                }}
-              >
-                {result}
-              </ReactMarkdown>
+            {/* RIGHT: PREVIEW */}
+            <div className="flex-1 bg-white overflow-y-auto custom-scrollbar relative">
+              <div className="absolute top-0 right-0 px-3 py-1 border-b border-l border-black bg-white text-[9px] font-mono tracking-widest uppercase z-10">
+                PREVIEW
+              </div>
+              <div className="max-w-3xl mx-auto p-12 md:p-16">
+                <article className="prose prose-sm md:prose-base max-w-none prose-headings:font-serif prose-headings:font-normal prose-p:font-sans prose-p:leading-relaxed prose-code:font-mono prose-code:text-xs prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-none">
+                  <ReactMarkdown
+                    components={{
+                      code({ node, inline, className, children, ...props }: any) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <div className="border border-gray-200 bg-gray-50 p-0 font-mono text-xs my-6 not-prose">
+                            <div className="px-3 py-1 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider flex justify-between">
+                              <span>{match[1]}</span>
+                              <span>:::</span>
+                            </div>
+                            <div className="p-4 overflow-x-auto">
+                              <SyntaxHighlighter
+                                style={vscDarkPlus}
+                                language={match[1]}
+                                PreTag="div"
+                                customStyle={{ background: 'transparent', padding: 0, margin: 0 }}
+                                {...props}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            </div>
+                          </div>
+                        ) : (
+                          <code className="bg-gray-100 px-1.5 py-0.5 font-mono text-[0.9em] rounded-none text-black" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                      h1: ({ children }) => <h1 className="text-4xl md:text-5xl border-b border-black pb-6 mb-8 mt-4">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-2xl md:text-3xl mt-12 mb-6 text-black/90">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-xl mt-8 mb-4 font-sans font-bold uppercase tracking-wide text-sm">{children}</h3>,
+                      p: ({ children }) => <p className="text-neutral-600 mb-6">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-outside ml-4 mb-6 space-y-2 text-neutral-600 marker:text-black">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-outside ml-4 mb-6 space-y-2 text-neutral-600 marker:font-mono marker:text-black">{children}</ol>,
+                      a: ({ href, children }) => <a href={href} className="text-[#FF3333] hover:text-black underline underline-offset-4 decoration-1 transition-colors" target="_blank" rel="noopener noreferrer">{children}</a>,
+                      blockquote: ({ children }) => <blockquote className="border-l-2 border-[#FF3333] pl-6 italic text-neutral-500 my-8 bg-gray-50 py-4 pr-4">{children}</blockquote>,
+                    }}
+                  >
+                    {result || ''}
+                  </ReactMarkdown>
+                </article>
+              </div>
             </div>
-          </div>
 
-          {/* Floating actions / Start Over */}
-          {!currentDocId && (
-            <Button
-              onClick={() => setResult(null)}
-              className="fixed bottom-12 right-12 w-16 h-16 shadow-none border-2 border-black"
-              title="Start over"
-            >
-              <Wand2 size={24} />
-            </Button>
-          )}
-        </div>
+          </div>
+        </motion.div>
       )}
     </main>
   );
