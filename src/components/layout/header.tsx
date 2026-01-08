@@ -45,7 +45,7 @@ export function Header({ session }: HeaderProps) {
                                 ) : (
                                     <User size={12} className="text-black" strokeWidth={1.5} />
                                 )}
-                                <span className="text-[10px] font-mono text-black uppercase tracking-wider">{session.user?.name}</span>
+                                <span className="text-[10px] font-mono text-black uppercase tracking-wider">{session.user?.username || session.user?.name}</span>
                             </div>
                             <Button
                                 variant="ghost"
