@@ -11,6 +11,7 @@ import { processZipFile } from '@/lib/zip-processor';
 import { generateDocs, processGithubUrl } from '@/app/actions/generate';
 import { updateHistoryItem, type HistoryItem } from '@/app/actions/history';
 import { TerminalLoader } from '@/components/terminal-loader';
+import { SourceSelector } from '@/components/source-selector';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { RepoPicker } from '@/components/repo-picker';
@@ -196,7 +197,7 @@ export default function PreamblePage() {
             </div>
             <div className="max-w-xs space-y-4">
               <p className="text-sm font-mono uppercase tracking-widest text-black/60 leading-relaxed">
-                Analyze your source code with maximum precision using Gemini 1.5 Flash.
+                Analyze your source code with maximum precision using Groq.
                 Upload a ZIP or connect your GitHub.
               </p>
               <div className="h-2 w-full bg-black" />
@@ -204,184 +205,19 @@ export default function PreamblePage() {
           </div>
 
           <div className="max-w-4xl mx-auto">
-            {session ? (
-              <div className="space-y-32">
-                {/* 1. Repository Index */}
-                <section>
-                  <h2 className="font-mono text-xs uppercase tracking-widest mb-4 border-b border-black pb-2">
-                    Index of / User-Repos
-                  </h2>
-                  <RepoPicker
-                    onSelect={(url) => handleGithubGenerate(url)}
-                    isGenerating={isGenerating}
-                    selectedUrl={processingUrl}
-                  />
-                </section>
+            {/* NEW: Unified Source Architecture */}
+            <SourceSelector
+              session={session}
+              isGenerating={isGenerating}
+              processingUrl={processingUrl}
+              onUrlSubmit={handleGithubGenerate}
+              onZipSubmit={generateFromZip}
+            />
 
-                {/* 2. Manual URL Input */}
-                <section className="space-y-12">
-                  <h2 className="font-mono text-xs uppercase tracking-widest mb-4 border-b border-black pb-2 text-black/30">
-                    Manual Repository Analysis
-                  </h2>
-                  <div className="space-y-8">
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        placeholder="HTTPS://GITHUB.COM/USER/REPO"
-                        value={githubUrl}
-                        onChange={(e) => setGithubUrl(e.target.value)}
-                        className="py-6 text-2xl uppercase tracking-tighter"
-                      />
-                      <Github className="absolute right-0 top-1/2 -translate-y-1/2 text-black/20" size={24} />
-                    </div>
-
-                    {currentDocId ? (
-                      <div className="flex gap-4">
-                        <Button
-                          onClick={handleSaveChanges}
-                          disabled={isSaving}
-                          className="flex-1 h-16 text-sm bg-black hover:bg-neutral-800"
-                        >
-                          <Save size={18} className="mr-3" />
-                          {saveFeedback || "SAVE CHANGES"}
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setCurrentDocId(null);
-                            setResult(null); // Optionally clear result or just exit edit mode?
-                            // Usually "Cancel" means go back to view mode or exit edit mode.
-                            // But here "Edit mode" basically means "Generate button" is hidden.
-                            // If we Cancel, we probably want to see "Generate" again.
-                            // But result is still there? 
-                            // If result is there, we are in the "Result View" (bottom of page code: !result ? ... : ResultView)
-                            // WAIT. The code structure is: `!result ? (Input Forms) : (Result View)`.
-                            // If `result` is set, we are NOT seeing the Input Forms!
-                            // So `currentDocId` logic for buttons ONLY matters if we are in the Input Forms view?
-                            // NO. If `result` is SET, we are in Result View.
-                            // "Al hacer clic en [EDIT]: Sube el contenido...". This means `setResult(content)`.
-                            // So we immediately switch to Result View.
-                            // In Result View, we usually just see Markdown.
-                            // We need to be able to EDIT the markdown in Result View?
-                            // The user says "Sube el contenido... al Editor Principal".
-                            // Does "Editor Principal" mean the Raw Markdown view? 
-                            // `ReactMarkdown` is read only. `SyntaxHighlighter` is read only.
-                            // The current implementation DOES NOT HAVE AN EDITOR.
-                            // It has a "Output Stream / README.md" which is a SyntaxHighlighter (read only).
-                            // To allow "Editing", I must replace SyntaxHighlighter with a <textarea> or <Editor> when in Edit Mode?
-                            // Or maybe the user *means* the `SyntaxHighlighter` area should become editable?
-                          }}
-                          variant="outline"
-                          className="w-32 h-16 text-sm"
-                        >
-                          <X size={18} className="mr-2" />
-                          CANCEL
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => handleGithubGenerate()}
-                        disabled={isGenerating || !githubUrl}
-                        className="w-full h-16 text-sm"
-                      >
-                        <Wand2 size={18} className="mr-3" />
-                        SYNTHESIZE FROM URL
-                      </Button>
-                    )}
-                  </div>
-                </section>
-
-                {/* 3. ZIP Upload */}
-                <section className="pt-20">
-                  <h2 className="font-mono text-xs uppercase tracking-widest mb-4 border-b border-black pb-2 text-black/30">
-                    Archive Processing
-                  </h2>
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-black hover:bg-gray-50 py-24 flex flex-col items-center justify-center gap-6 cursor-pointer transition-colors"
-                  >
-                    <div className="p-6 border border-black">
-                      <FileArchive className="text-black" size={40} />
-                    </div>
-                    <div className="text-center space-y-2">
-                      <p className="font-serif text-2xl uppercase">Drop project archive</p>
-                      <p className="text-[10px] font-mono tracking-widest text-black/40">OR CLICK TO BROWSE FILESYSTEM</p>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".zip"
-                      onChange={handleZipUpload}
-                      className="hidden"
-                    />
-                  </div>
-                </section>
-
-                {/* 4. History */}
-                <section id="history-section" className="pt-20 scroll-mt-20">
-                  <HistoryList onEdit={handleEditHistory} />
-                </section>
-              </div>
-            ) : (
-              // GUEST VIEW (Similar structure, needs update)
-              <div className="space-y-12">
-                {/* ... Guest Tabs ... */}
-
-                {/* Guest Generate Buttons need same Logic? */}
-                {/* The request says "Modify main action button". */}
-                {/* Guest view duplicates logic a bit. Ideally refactor, but I'll patch it for now. */}
-                {/* ... */}
-                <div className="pb-12">
-                  {mode === 'github' ? (
-                    <div className="space-y-8">
-                      <div className="relative">
-                        <Input
-                          type="text"
-                          placeholder="HTTPS://GITHUB.COM/USER/REPO"
-                          value={githubUrl}
-                          onChange={(e) => setGithubUrl(e.target.value)}
-                          className="py-6 text-2xl uppercase tracking-tighter"
-                        />
-                        <Github className="absolute right-0 top-1/2 -translate-y-1/2 text-black/20" size={24} />
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => signIn('github')}
-                        className="w-full h-16 text-sm"
-                      >
-                        <Github size={18} className="mr-3" />
-                        AUTHENTICATE WITH GITHUB
-                      </Button>
-                    </div>
-                  ) : (
-                    // Zip upload area
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-black hover:bg-gray-50 py-24 flex flex-col items-center justify-center gap-6 cursor-pointer transition-colors"
-                    >
-                      {/* ... */}
-                      <div className="p-6 border border-black">
-                        <FileArchive className="text-black" size={40} />
-                      </div>
-                      <div className="text-center space-y-2">
-                        <p className="font-serif text-2xl uppercase">Drop project archive</p>
-                        <p className="text-[10px] font-mono tracking-widest text-black/40">OR CLICK TO BROWSE FILESYSTEM</p>
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".zip"
-                        onChange={handleZipUpload}
-                        className="hidden"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <section id="history-section" className="pt-20 scroll-mt-20">
-                  <HistoryList onEdit={handleEditHistory} />
-                </section>
-              </div>
-            )}
+            {/* History Section maintained below */}
+            <section id="history-section" className="pt-24 mt-24 border-t border-neutral-100 scroll-mt-20">
+              <HistoryList onEdit={handleEditHistory} />
+            </section>
           </div>
 
           <AnimatePresence>
