@@ -2,49 +2,83 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { getHistory, type HistoryItem } from '@/app/actions/history';
-import { FileText, Clock } from 'lucide-react';
+import { getHistory, deleteHistoryItem, type HistoryItem } from '@/app/actions/history';
+import { FileText, Trash2, Edit2, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface HistoryListProps {
     onSelect?: (content: string) => void;
+    onEdit?: (item: HistoryItem) => void;
 }
 
-export function HistoryList({ onSelect }: HistoryListProps) {
+export function HistoryList({ onSelect, onEdit }: HistoryListProps) {
     const { data: session } = useSession();
     const [items, setItems] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+    async function fetchHistory() {
+        setLoading(true);
+        try {
+            if (session?.user) {
+                const serverData = await getHistory();
+                setItems(serverData);
+            } else {
+                const localDataRaw = localStorage.getItem('preamble_guest_history');
+                if (localDataRaw) {
+                    const localData = JSON.parse(localDataRaw);
+                    localData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    setItems(localData);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load history", error);
+        } finally {
+            setLoading(false);
+        }
+    }
 
     useEffect(() => {
-        async function fetchHistory() {
-            setLoading(true);
-            try {
-                if (session?.user) {
-                    // Fetch from Supabase
-                    const serverData = await getHistory();
-                    setItems(serverData);
-                } else {
-                    // Fetch from LocalStorage
-                    const localDataRaw = localStorage.getItem('preamble_guest_history');
-                    if (localDataRaw) {
-                        const localData = JSON.parse(localDataRaw);
-                        // Sort by date descending
-                        localData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                        setItems(localData);
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to load history", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
         fetchHistory();
     }, [session]);
 
+    // Handle "Sure?" timeout
+    useEffect(() => {
+        if (deleteConfirmId) {
+            const timer = setTimeout(() => {
+                setDeleteConfirmId(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [deleteConfirmId]);
+
+    const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (deleteConfirmId === id) {
+            // CONFIRMED DELETE
+            if (session?.user) {
+                await deleteHistoryItem(id);
+                setItems(prev => prev.filter(i => i.id !== id));
+            } else {
+                const updated = items.filter(i => i.id !== id);
+                setItems(updated);
+                localStorage.setItem('preamble_guest_history', JSON.stringify(updated));
+            }
+            setDeleteConfirmId(null);
+        } else {
+            // FIRST CLICK
+            setDeleteConfirmId(id);
+        }
+    };
+
+    const handleEditClick = (e: React.MouseEvent, item: HistoryItem) => {
+        e.stopPropagation();
+        if (onEdit) onEdit(item);
+    };
+
     if (loading) {
-        return <div className="p-4 text-xs font-mono text-neutral-500">oading history...</div>;
+        return <div className="p-4 text-xs font-mono text-neutral-500">Loading history...</div>;
     }
 
     if (items.length === 0) {
@@ -53,27 +87,55 @@ export function HistoryList({ onSelect }: HistoryListProps) {
 
     return (
         <div className="w-full border-t border-neutral-200">
-            <h3 className="px-4 py-3 text-xs font-bold font-mono uppercase tracking-wider border-b border-neutral-200 bg-neutral-50">
-                {session ? 'Cloud History' : 'Local History'}
+            <h3 className="px-4 py-3 text-xs font-bold font-mono uppercase tracking-wider border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
+                <span>{session ? 'Cloud History' : 'Local History'}</span>
+                {items.length > 0 && <span className="text-neutral-400">{items.length} items</span>}
             </h3>
             <ul className="divide-y divide-neutral-200">
                 {items.map((item) => (
                     <li
                         key={item.id}
-                        className="group flex flex-col gap-1 p-4 hover:bg-neutral-50 cursor-pointer transition-colors"
-                        onClick={() => onSelect?.(item.content)}
+                        className="group flex items-center justify-between p-4 hover:bg-neutral-50 transition-colors"
                     >
-                        <div className="flex items-center justify-between w-full">
-                            <span className="font-mono text-sm font-semibold text-neutral-900 truncate max-w-[200px]">
-                                {item.repo_name}
-                            </span>
-                            <span className="text-[10px] uppercase font-mono text-neutral-400">
-                                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-                            </span>
+                        {/* Content Area */}
+                        <div
+                            className="flex-1 cursor-pointer pr-4"
+                            onClick={() => onEdit?.(item)}
+                        >
+                            <div className="flex items-center gap-3 mb-1">
+                                <span className="font-mono text-sm font-semibold text-neutral-900 truncate max-w-[200px] block">
+                                    {item.repo_name}
+                                </span>
+                                <span className="text-[10px] uppercase font-mono text-neutral-400">
+                                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-neutral-500 text-xs font-sans">
+                                <FileText className="w-3 h-3" />
+                                <span className="truncate">README.md</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 text-neutral-500 text-xs text-ellipsis overflow-hidden font-sans">
-                            <FileText className="w-3 h-3" />
-                            <span className="truncate">README.md generated</span>
+
+                        {/* Actions Area */}
+                        <div className="flex items-center gap-2 pl-4 border-l border-neutral-100">
+                            <button
+                                onClick={(e) => handleEditClick(e, item)}
+                                className="px-2 py-1 text-[10px] font-mono uppercase font-bold text-neutral-400 hover:text-black hover:bg-neutral-200 transition-all"
+                            >
+                                [EDIT]
+                            </button>
+
+                            <button
+                                onClick={(e) => handleDeleteClick(e, item.id)}
+                                className={cn(
+                                    "px-2 py-1 text-[10px] font-mono uppercase font-bold transition-all min-w-[50px] text-center",
+                                    deleteConfirmId === item.id
+                                        ? "bg-[#FF3333] text-white"
+                                        : "text-neutral-400 hover:text-[#FF3333] hover:bg-red-50"
+                                )}
+                            >
+                                {deleteConfirmId === item.id ? "SURE?" : "[DEL]"}
+                            </button>
                         </div>
                     </li>
                 ))}

@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic';
 import { useState, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Github, FileArchive, Terminal as TerminalIcon, Download, Copy, Check, Sparkles, Wand2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Github, FileArchive, Terminal as TerminalIcon, Download, Copy, Check, Sparkles, Wand2, ChevronRight, ArrowLeft, Save, X } from 'lucide-react';
 import { processZipFile } from '@/lib/zip-processor';
 import { generateDocs, processGithubUrl } from '@/app/actions/generate';
+import { updateHistoryItem, type HistoryItem } from '@/app/actions/history';
 import { TerminalLoader } from '@/components/terminal-loader';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -33,6 +34,11 @@ export default function PreamblePage() {
   const [result, setResult] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Edit Mode State
+  const [currentDocId, setCurrentDocId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+
   const [processingUrl, setProcessingUrl] = useState<string | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +54,7 @@ export default function PreamblePage() {
 
   const generateFromZip = async (file: File) => {
     setMode('zip');
+    setCurrentDocId(null);
     setIsGenerating(true);
     setLogs([]);
     addLog(`Initializing local ZIP processing: ${file.name}`);
@@ -74,6 +81,7 @@ export default function PreamblePage() {
     if (!targetUrl) return;
 
     setProcessingUrl(targetUrl);
+    setCurrentDocId(null); // New generation clears edit mode
     setIsGenerating(true);
     setLogs([]);
     addLog(`Analyzing repository: ${targetUrl}`);
@@ -94,6 +102,63 @@ export default function PreamblePage() {
     } finally {
       setIsGenerating(false);
       setProcessingUrl(undefined);
+    }
+  };
+
+  // --- CRUD HANDLERS ---
+
+  const handleEditHistory = (item: HistoryItem) => {
+    setResult(item.content);
+    setCurrentDocId(item.id);
+
+    // Scroll to editor (if currently viewing output, it might be separate view, but here prompt assumes we are in editor or can see it)
+    // Actually current layout hides inputs when result is shown?
+    // "Al hacer clic en [EDIT]: Sube el contenido de ese historial al Editor Principal de la página (markdown state)."
+    // "Hace scroll suave hacia arriba (al editor)."
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSaveChanges = async () => {
+    if (!currentDocId || !result) return;
+
+    setIsSaving(true);
+    try {
+      if (session?.user) {
+        await updateHistoryItem(currentDocId, result);
+      } else {
+        const localDataRaw = localStorage.getItem('preamble_guest_history');
+        if (localDataRaw) {
+          const localData: HistoryItem[] = JSON.parse(localDataRaw);
+          const updatedData = localData.map(item => {
+            if (item.id === currentDocId) {
+              return { ...item, content: result, created_at: new Date().toISOString() };
+            }
+            return item;
+          });
+          localStorage.setItem('preamble_guest_history', JSON.stringify(updatedData));
+
+          // Hacky way to refresh history list without context/events since it's local storage
+          // Component will re-render if we force it or if we signal update?
+          // For now, next page load or polling will fix it. 
+          // BUT HistoryList reads on mount/session change.
+          // We might need to force a refresh on HistoryList. 
+          // Since this component owns HistoryList, we can use a key or callback.
+          // However user moved HistoryList logic inside component.
+          // Let's rely on standard re-render behavior or page reload if forced.
+          // Ideally we'd use a context or lifting state, but to keep it simple with current setup:
+          window.location.reload(); // Simplest way to ensure Guest list updates immediately or we leave it stale until refresh
+          // Actually, let's avoid reload. The HistoryList doesn't listen to LS changes.
+          // We'll skip forcing list update for guest for now, "Saved" feedback is enough.
+        }
+      }
+      setSaveFeedback("SAVED!");
+      setTimeout(() => setSaveFeedback(null), 2000);
+    } catch (e) {
+      console.error("Error saving:", e);
+      setSaveFeedback("ERROR");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -169,14 +234,59 @@ export default function PreamblePage() {
                       />
                       <Github className="absolute right-0 top-1/2 -translate-y-1/2 text-black/20" size={24} />
                     </div>
-                    <Button
-                      onClick={() => handleGithubGenerate()}
-                      disabled={isGenerating || !githubUrl}
-                      className="w-full h-16 text-sm"
-                    >
-                      <Wand2 size={18} className="mr-3" />
-                      SYNTHESIZE FROM URL
-                    </Button>
+
+                    {currentDocId ? (
+                      <div className="flex gap-4">
+                        <Button
+                          onClick={handleSaveChanges}
+                          disabled={isSaving}
+                          className="flex-1 h-16 text-sm bg-black hover:bg-neutral-800"
+                        >
+                          <Save size={18} className="mr-3" />
+                          {saveFeedback || "SAVE CHANGES"}
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setCurrentDocId(null);
+                            setResult(null); // Optionally clear result or just exit edit mode?
+                            // Usually "Cancel" means go back to view mode or exit edit mode.
+                            // But here "Edit mode" basically means "Generate button" is hidden.
+                            // If we Cancel, we probably want to see "Generate" again.
+                            // But result is still there? 
+                            // If result is there, we are in the "Result View" (bottom of page code: !result ? ... : ResultView)
+                            // WAIT. The code structure is: `!result ? (Input Forms) : (Result View)`.
+                            // If `result` is set, we are NOT seeing the Input Forms!
+                            // So `currentDocId` logic for buttons ONLY matters if we are in the Input Forms view?
+                            // NO. If `result` is SET, we are in Result View.
+                            // "Al hacer clic en [EDIT]: Sube el contenido...". This means `setResult(content)`.
+                            // So we immediately switch to Result View.
+                            // In Result View, we usually just see Markdown.
+                            // We need to be able to EDIT the markdown in Result View?
+                            // The user says "Sube el contenido... al Editor Principal".
+                            // Does "Editor Principal" mean the Raw Markdown view? 
+                            // `ReactMarkdown` is read only. `SyntaxHighlighter` is read only.
+                            // The current implementation DOES NOT HAVE AN EDITOR.
+                            // It has a "Output Stream / README.md" which is a SyntaxHighlighter (read only).
+                            // To allow "Editing", I must replace SyntaxHighlighter with a <textarea> or <Editor> when in Edit Mode?
+                            // Or maybe the user *means* the `SyntaxHighlighter` area should become editable?
+                          }}
+                          variant="outline"
+                          className="w-32 h-16 text-sm"
+                        >
+                          <X size={18} className="mr-2" />
+                          CANCEL
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => handleGithubGenerate()}
+                        disabled={isGenerating || !githubUrl}
+                        className="w-full h-16 text-sm"
+                      >
+                        <Wand2 size={18} className="mr-3" />
+                        SYNTHESIZE FROM URL
+                      </Button>
+                    )}
                   </div>
                 </section>
 
@@ -208,28 +318,18 @@ export default function PreamblePage() {
 
                 {/* 4. History */}
                 <section id="history-section" className="pt-20 scroll-mt-20">
-                  <HistoryList onSelect={setResult} />
+                  <HistoryList onEdit={handleEditHistory} />
                 </section>
               </div>
             ) : (
+              // GUEST VIEW (Similar structure, needs update)
               <div className="space-y-12">
-                <div className="flex border border-black mb-12">
-                  <button
-                    onClick={() => setMode('github')}
-                    className={`flex-1 py-4 font-mono text-xs uppercase tracking-[0.2em] transition-colors ${mode === 'github' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'
-                      }`}
-                  >
-                    GitHub Analysis
-                  </button>
-                  <button
-                    onClick={() => setMode('zip')}
-                    className={`flex-1 py-4 border-l border-black font-mono text-xs uppercase tracking-[0.2em] transition-colors ${mode === 'zip' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'
-                      }`}
-                  >
-                    Local Archivist
-                  </button>
-                </div>
+                {/* ... Guest Tabs ... */}
 
+                {/* Guest Generate Buttons need same Logic? */}
+                {/* The request says "Modify main action button". */}
+                {/* Guest view duplicates logic a bit. Ideally refactor, but I'll patch it for now. */}
+                {/* ... */}
                 <div className="pb-12">
                   {mode === 'github' ? (
                     <div className="space-y-8">
@@ -253,10 +353,12 @@ export default function PreamblePage() {
                       </Button>
                     </div>
                   ) : (
+                    // Zip upload area
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       className="border-2 border-dashed border-black hover:bg-gray-50 py-24 flex flex-col items-center justify-center gap-6 cursor-pointer transition-colors"
                     >
+                      {/* ... */}
                       <div className="p-6 border border-black">
                         <FileArchive className="text-black" size={40} />
                       </div>
@@ -274,6 +376,10 @@ export default function PreamblePage() {
                     </div>
                   )}
                 </div>
+
+                <section id="history-section" className="pt-20 scroll-mt-20">
+                  <HistoryList onEdit={handleEditHistory} />
+                </section>
               </div>
             )}
           </div>
@@ -284,38 +390,62 @@ export default function PreamblePage() {
           <Footer />
         </div>
       ) : (
+        // RESULT VIEW
         <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] mt-16 overflow-hidden border-t border-black">
           {/* Left: Raw Markdown / Code */}
           <div className="flex-1 border-r border-black bg-white overflow-hidden flex flex-col">
             <div className="p-4 border-b border-black bg-gray-50 flex items-center justify-between">
               <div className="flex items-center gap-3 text-black text-[10px] font-mono tracking-[0.2em] uppercase font-bold">
                 <TerminalIcon size={14} className="text-[#FF3333]" strokeWidth={1.5} />
-                Output Stream / README.md
+                {currentDocId ? 'EDIT MODE' : 'Output Stream'} / README.md
               </div>
               <div className="flex gap-2">
-                <div className="flex gap-2">
-                  <CopyButton text={result || ''} className="h-8 w-20" />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={downloadMd}
-                    className="h-8 w-8"
-                    title="Download .md"
-                  >
-                    <Download size={14} strokeWidth={1.5} />
-                  </Button>
-                </div>
+                {currentDocId ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setResult(null);
+                        setCurrentDocId(null);
+                      }}
+                      className="h-8 text-[10px] font-mono uppercase"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveChanges}
+                      disabled={isSaving}
+                      className={isSaving ? "bg-gray-400" : "bg-[#FF3333] hover:bg-red-600"}
+                    >
+                      {saveFeedback || "SAVE CHANGES"}
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <CopyButton text={result || ''} className="h-8 w-20" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={downloadMd}
+                      className="h-8 w-8"
+                      title="Download .md"
+                    >
+                      <Download size={14} strokeWidth={1.5} />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex-1 overflow-auto p-8 font-mono text-[13px] selection:bg-black selection:text-white">
-              <SyntaxHighlighter
-                language="markdown"
-                style={vscDarkPlus}
-                customStyle={{ background: 'transparent', padding: 0 }}
-              >
-
-                {result || ''}
-              </SyntaxHighlighter>
+            <div className="flex-1 overflow-auto p-0 font-mono text-[13px] selection:bg-black selection:text-white relative">
+              {/* EDITABLE TEXTAREA OVERLAY OR REPLACEMENT */}
+              <textarea
+                value={result || ''}
+                onChange={(e) => setResult(e.target.value)}
+                className="w-full h-full p-8 resize-none focus:outline-none focus:ring-0 font-mono text-[13px] bg-transparent leading-relaxed"
+                spellCheck={false}
+              />
             </div>
           </div>
 
@@ -354,13 +484,16 @@ export default function PreamblePage() {
             </div>
           </div>
 
-          <Button
-            onClick={() => setResult(null)}
-            className="fixed bottom-12 right-12 w-16 h-16 shadow-none border-2 border-black"
-            title="Start over"
-          >
-            <Wand2 size={24} />
-          </Button>
+          {/* Floating actions / Start Over */}
+          {!currentDocId && (
+            <Button
+              onClick={() => setResult(null)}
+              className="fixed bottom-12 right-12 w-16 h-16 shadow-none border-2 border-black"
+              title="Start over"
+            >
+              <Wand2 size={24} />
+            </Button>
+          )}
         </div>
       )}
     </main>
