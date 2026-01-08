@@ -14,6 +14,11 @@ export default {
                 'swiss-red': '#FF3333',
                 'grid-line': '#E5E5E5',
             },
+            fontFamily: {
+                sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+                serif: ["var(--font-serif)", "ui-serif", "Georgia", "serif"],
+                mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+            },
             borderRadius: {
                 none: '0px',
                 sm: '0px',

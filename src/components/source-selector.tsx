@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { RepoPicker } from '@/components/repo-picker';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Wand2, Github, FileArchive, UploadCloud, ArrowRight } from 'lucide-react';
+import { Wand2, Github, FileArchive, UploadCloud, ArrowRight, X } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 
 type ViewMode = 'index' | 'remote' | 'local';
@@ -29,6 +29,7 @@ export function SourceSelector({
     const [view, setView] = useState<ViewMode>(session ? 'index' : 'remote');
     const [urlInput, setUrlInput] = useState('');
     const [dragActive, setDragActive] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Update view if session changes (e.g. after login)
@@ -38,12 +39,17 @@ export function SourceSelector({
         }
     }, [session]);
 
+    // Clear error on view change
+    useEffect(() => {
+        if (error) setError(null);
+    }, [view]);
+
     // --- TABS COMPONENT ---
     const TabButton = ({ mode, label }: { mode: ViewMode, label: string }) => (
         <button
             onClick={() => setView(mode)}
             className={cn(
-                "font-mono text-xs uppercase tracking-widest pb-2 transition-all duration-300",
+                "font-mono text-xs uppercase tracking-widest pb-2 transition-all duration-150 ease-out whitespace-nowrap",
                 view === mode
                     ? "text-black border-b-2 border-[#FF3333]"
                     : "text-neutral-400 hover:text-black border-b-2 border-transparent"
@@ -68,37 +74,49 @@ export function SourceSelector({
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
+        setError(null);
 
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const file = e.dataTransfer.files[0];
             if (file.type === "application/zip" || file.name.endsWith(".zip")) {
                 onZipSubmit(file);
             } else {
-                alert("Please upload a valid .zip file");
+                setError("INVALID FILE FORMAT. PLEASE UPLOAD A .ZIP ARCHIVE.");
             }
         }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setError(null);
         if (e.target.files && e.target.files[0]) {
             onZipSubmit(e.target.files[0]);
         }
     };
 
     return (
-        <div className="space-y-12">
+        <div className="space-y-8">
             {/* TABS HEADER */}
-            <div className="flex items-center gap-12 border-b border-neutral-100 pb-px">
+            <div className="flex items-center gap-8 md:gap-12 border-b border-neutral-100 pb-px overflow-x-auto scrollbar-hide">
                 {session && <TabButton mode="index" label="[ INDEX ]" />}
                 <TabButton mode="remote" label="[ REMOTE ]" />
                 <TabButton mode="local" label="[ LOCAL ]" />
             </div>
 
+            {/* ERROR BANNER */}
+            {error && (
+                <div className="bg-[#FF3333] text-white font-mono text-xs p-3 flex justify-between items-center animate-in slide-in-from-top-2 duration-150">
+                    <span className="uppercase font-bold tracking-wide">{error}</span>
+                    <button onClick={() => setError(null)} className="hover:text-black transition-colors duration-150">
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
+
             {/* CONTENT AREA */}
             <div className="min-h-[300px]">
                 {/* 1. INDEX VIEW (Repo Picker) */}
                 {view === 'index' && session && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                         <RepoPicker
                             onSelect={onUrlSubmit}
                             isGenerating={isGenerating}
@@ -109,7 +127,7 @@ export function SourceSelector({
 
                 {/* 2. REMOTE VIEW (URL Input) */}
                 {view === 'remote' && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8 max-w-2xl">
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-150 space-y-8 max-w-2xl">
                         {!session && (
                             <div className="p-6 bg-neutral-50 border border-neutral-200 mb-8">
                                 <h3 className="font-serif text-xl mb-2">Connect your account</h3>
@@ -142,17 +160,17 @@ export function SourceSelector({
                                         const val = e.target.value.replace(/^https?:\/\//, '');
                                         setUrlInput(val);
                                     }}
-                                    className="pl-28 py-8 text-xl font-mono border-neutral-200 focus:border-black transition-all"
+                                    className="pl-28 py-8 text-xl font-mono border-neutral-200 focus:border-black transition-all duration-150"
                                 />
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                    <Github className="text-neutral-200 group-focus-within:text-black transition-colors" size={24} />
+                                    <Github className="text-neutral-200 group-focus-within:text-black transition-colors duration-150" size={24} />
                                 </div>
                             </div>
 
                             <Button
                                 onClick={() => onUrlSubmit(`https://${urlInput}`)}
                                 disabled={isGenerating || !urlInput.includes('/')}
-                                className="w-full h-14 text-sm font-mono tracking-widest bg-black text-white hover:bg-neutral-800"
+                                className="w-full h-14 text-sm font-mono tracking-widest bg-black text-white hover:bg-neutral-800 transition-colors duration-150"
                             >
                                 {isGenerating ? (
                                     <span className="animate-pulse">PROCESSING...</span>
@@ -169,7 +187,7 @@ export function SourceSelector({
 
                 {/* 3. LOCAL VIEW (Zip Upload) */}
                 {view === 'local' && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-2xl">
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-150 max-w-2xl">
                         <div
                             onDragEnter={handleDrag}
                             onDragLeave={handleDrag}
@@ -177,14 +195,14 @@ export function SourceSelector({
                             onDrop={handleDrop}
                             onClick={() => fileInputRef.current?.click()}
                             className={cn(
-                                "relative h-80 w-full border-2 border-dashed transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-6",
+                                "relative h-80 w-full border-2 border-dashed transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-6",
                                 dragActive
                                     ? "border-[#FF3333] bg-red-50/10 scale-[1.02]"
                                     : "border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50"
                             )}
                         >
                             <div className={cn(
-                                "p-6 rounded-full transition-colors duration-300",
+                                "p-6 rounded-full transition-colors duration-150",
                                 dragActive ? "bg-[#FF3333] text-white" : "bg-neutral-100 text-neutral-400"
                             )}>
                                 {dragActive ? <ArrowRight size={32} /> : <FileArchive size={32} />}

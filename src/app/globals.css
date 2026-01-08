@@ -7,9 +7,9 @@
   --color-swiss-red: #FF3333;
   --color-grid-line: #E5E5E5;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-serif), ui-serif, Georgia, serif;
-  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
 
   --radius-none: 0px;
   --radius-sm: 0px;
@@ -57,6 +57,19 @@
 
   .swiss-border-b {
     @apply border-b border-grid-line;
+  }
+
+  /* Hide scrollbar for Chrome/Safari/Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 
   .custom-scrollbar::-webkit-scrollbar {

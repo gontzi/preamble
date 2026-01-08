@@ -68,13 +68,10 @@ export function RepoPicker({ onSelect, isGenerating, selectedUrl }: RepoPickerPr
             </div>
 
             {loading ? (
-                <div className="space-y-0 border-t border-black">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="w-full p-6 border-b border-gray-100 flex justify-between items-center animate-pulse">
-                            <div className="h-6 w-48 bg-gray-100" />
-                            <div className="h-4 w-24 bg-gray-100" />
-                        </div>
-                    ))}
+                <div className="border-t border-black p-12 text-center">
+                    <span className="font-mono text-xs uppercase tracking-widest font-bold text-black animate-pulse">
+                        [ READING_REPOSITORY_INDEX... ]
+                    </span>
                 </div>
             ) : error ? (
                 <div className="p-8 border border-red-500 bg-red-50">

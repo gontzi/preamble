@@ -227,7 +227,7 @@ export default function PreamblePage() {
         </div>
       ) : (
         // RESULT VIEW
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] mt-16 overflow-hidden border-t border-black">
+        <div className="flex flex-col lg:flex-row h-[calc(100dvh-64px)] mt-16 overflow-hidden border-t border-black">
           {/* Left: Raw Markdown / Code */}
           <div className="flex-1 border-r border-black bg-white overflow-hidden flex flex-col">
             <div className="p-4 border-b border-black bg-gray-50 flex items-center justify-between">

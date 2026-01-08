@@ -99,7 +99,7 @@ export function HistoryList({ onSelect, onEdit }: HistoryListProps) {
                     >
                         {/* Content Area */}
                         <div
-                            className="flex-1 cursor-pointer pr-4"
+                            className="flex-1 cursor-pointer pr-4 py-2"
                             onClick={() => onEdit?.(item)}
                         >
                             <div className="flex items-center gap-3 mb-1">
@@ -120,7 +120,8 @@ export function HistoryList({ onSelect, onEdit }: HistoryListProps) {
                         <div className="flex items-center gap-2 pl-4 border-l border-neutral-100">
                             <button
                                 onClick={(e) => handleEditClick(e, item)}
-                                className="px-2 py-1 text-[10px] font-mono uppercase font-bold text-neutral-400 hover:text-black hover:bg-neutral-200 transition-all"
+                                className="min-w-[40px] min-h-[40px] flex items-center justify-center text-[10px] font-mono uppercase font-bold text-neutral-400 hover:text-black hover:bg-neutral-200 transition-all"
+                                aria-label="Edit history item"
                             >
                                 [EDIT]
                             </button>
@@ -128,11 +129,12 @@ export function HistoryList({ onSelect, onEdit }: HistoryListProps) {
                             <button
                                 onClick={(e) => handleDeleteClick(e, item.id)}
                                 className={cn(
-                                    "px-2 py-1 text-[10px] font-mono uppercase font-bold transition-all min-w-[50px] text-center",
+                                    "min-w-[50px] min-h-[40px] flex items-center justify-center text-[10px] font-mono uppercase font-bold transition-all text-center",
                                     deleteConfirmId === item.id
                                         ? "bg-[#FF3333] text-white"
                                         : "text-neutral-400 hover:text-[#FF3333] hover:bg-red-50"
                                 )}
+                                aria-label="Delete history item"
                             >
                                 {deleteConfirmId === item.id ? "SURE?" : "[DEL]"}
                             </button>
@@ -140,6 +142,13 @@ export function HistoryList({ onSelect, onEdit }: HistoryListProps) {
                     </li>
                 ))}
             </ul>
+            {!session && items.length > 0 && (
+                <div className="p-4 text-center border-t border-neutral-100">
+                    <p className="text-[9px] text-gray-400 font-mono uppercase tracking-widest">
+                        * DATA STORED LOCALLY (NON-PERSISTENT)
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
