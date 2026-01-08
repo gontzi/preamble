@@ -1,8 +1,5 @@
 'use server';
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
 import { Octokit } from 'octokit';
 import { auth } from '@/auth';
 
