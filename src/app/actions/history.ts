@@ -1,5 +1,8 @@
 'use server';
 
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/auth';
 
