@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { auth } from '@/auth';
 
 export type HistoryItem = {
@@ -11,6 +11,7 @@ export type HistoryItem = {
 };
 
 export async function getHistory(): Promise<HistoryItem[]> {
+    const supabase = getSupabaseAdmin();
     const session = await auth();
     if (!session?.user?.email) {
         return [];

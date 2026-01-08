@@ -3,9 +3,10 @@
 import OpenAI from 'openai';
 import { Octokit } from 'octokit';
 import { auth } from '@/auth';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function generateDocs(context: string, repoName?: string): Promise<{ content: string; savedToDb: boolean }> {
+    const supabase = getSupabaseAdmin();
     console.log('🏁 Iniciando proceso de generación de IA con Groq/Llama3...');
 
     // Truncar contexto para evitar errores de payload y mejorar latencia
