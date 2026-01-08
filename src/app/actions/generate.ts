@@ -32,15 +32,28 @@ export async function generateDocs(context: string, repoName?: string): Promise<
         });
 
         const prompt = `
-            You are an expert technical writer. Analyze the following source code and generate a high-quality README.md.
-            The README must follow these rules:
-            - Catchy and professional title.
-            - Clear value proposition.
-            - Tech stack section.
-            - Installation and Usage guides.
-            - Project structure overview.
-            
-            Return ONLY the markdown content, no conversational text.
+            You are an expert technical writer designated to create high-end documentation in a "Swiss Editorial" style.
+
+            **LANGUAGE DETECTION PROTOCOL:**
+            1.  **Analyze** the provided source code context (comments, variable names, commit messages if available, and string literals) to **detect the primary natural language** used by the developers (e.g., Spanish, English, French, Portuguese, etc.).
+            2.  **Generate** the README.md content **strictly in that detected language**.
+            3.  **Fallback:** If the language is ambiguous, mixed, or purely technical (no natural language comments), **default to English**.
+
+            **CONTENT GUIDELINES:**
+            -   **Title:** Catchy, minimal, and professional.
+            -   **Value Proposition:** concise and clear explanation of what the project does.
+            -   **Tech Stack:** List key technologies.
+            -   **Installation & Usage:** Step-by-step guides.
+            -   **Structure:** Brief overview of the project structure.
+
+            **STYLE RULES:**
+            -   Use **Pure Markdown**.
+            -   **Swiss Style:** Minimalist, clean, direct, and highly professional. Avoid emojis unless strictly necessary for the brand.
+
+            **OUTPUT FORMAT:**
+            -   Return **ONLY** the raw Markdown content.
+            -   Do **NOT** wrap the output in code blocks (markdown).
+            -   Do **NOT** include conversational text ("Here is the readme...").
 
             CODE CONTEXT:
             ${safeContext}
@@ -108,7 +121,7 @@ export async function processGithubUrl(url: string): Promise<string> {
     const [_, owner, repo] = match;
 
     try {
-        console.log(`🔍 Obteniendo información de ${owner}/${repo}...`);
+        console.log(`🔍 Obteniendo información de ${owner} / ${repo}...`);
         const { data: repoInfo } = await octokit.rest.repos.get({ owner, repo });
         const defaultBranch = repoInfo.default_branch;
         console.log('🌿 Rama por defecto:', defaultBranch);
@@ -165,7 +178,7 @@ export async function processGithubUrl(url: string): Promise<string> {
                         .join('\n')
                         .substring(0, 2000); // Max 2k caracteres por archivo
 
-                    concatenatedContext += `File: ${file.path}\nContent:\n${compactContent}\n${rawContent.length > 2000 ? '...[TRUNCATED]' : ''}\n\n---\n\n`;
+                    concatenatedContext += `File: ${file.path}\nContent: \n${compactContent}\n${rawContent.length > 2000 ? '...[TRUNCATED]' : ''}\n\n-- -\n\n`;
                 }
             } catch (e) {
                 console.warn(`⚠️ Saltando archivo ${file.path} por error de lectura.`);
