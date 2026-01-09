@@ -5,14 +5,14 @@ Precision engineering for technical documentation in a swiss editorial style.
 Preamble is an innovative tool that leverages AI to generate high-quality README.md files for your projects. With its intuitive interface and robust features, Preamble streamlines the documentation process, saving you time and effort. Whether you're a developer, technical writer, or project manager, Preamble is the perfect solution for creating professional and engaging technical documentation.
 
 ## Tech Stack
-* Next.js
-* React
-* TypeScript
-* Tailwind CSS
-* Supabase
-* OpenAI
-* GitHub API
-* Octokit
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=next.js)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=flat-square&logo=tailwind-css)
+![Supabase](https://img.shields.io/badge/Supabase-3E8E41?style=flat-square&logo=supabase)
+![OpenAI](https://img.shields.io/badge/OpenAI-172B4D?style=flat-square&logo=openai)
+![GitHub API](https://img.shields.io/badge/GitHub%20API-181717?style=flat-square&logo=github)
+![Octokit](https://img.shields.io/badge/Octokit-181717?style=flat-square&logo=octokit)
 
 ## Installation and Usage
 To get started with Preamble, follow these steps:
@@ -29,3 +29,5 @@ The Preamble project is organized into the following directories:
 * `src/types`: Defines TypeScript types for the project.
 * `public`: Serves static assets, like images and fonts.
 * `styles`: Contains global CSS styles and Tailwind configuration.
+
+[![Made with Preamble](https://img.shields.io/badge/Made_by-PREAMBLE-FF0000?style=flat-square)](https://preamble.pages.dev)

@@ -31,46 +31,59 @@ export async function generateDocs(context: string, repoName?: string): Promise<
             baseURL: 'https://api.groq.com/openai/v1',
         });
 
-        const prompt = `
-            You are an expert technical writer designated to create high-end documentation in a "Swiss Editorial" style.
+        const systemPrompt = `You are an expert technical writer designated to create high-end documentation in a "Swiss Editorial" style.
 
-            **LANGUAGE DETECTION PROTOCOL:**
-            1.  **Analyze** the provided source code context (comments, variable names, commit messages if available, and string literals) to **detect the primary natural language** used by the developers (e.g., Spanish, English, French, Portuguese, etc.).
-            2.  **Generate** the README.md content **strictly in that detected language**.
-            3.  **Fallback:** If the language is ambiguous, mixed, or purely technical (no natural language comments), **default to English**.
+        **CORE MISSION:**
+        Analyze the provided code context and generate a README.md that is professional, minimalist, and perfectly tailored to the project type.
 
-            **CONTENT GUIDELINES:**
-            -   **Title:** Catchy, minimal, and professional.
-            -   **Value Proposition:** concise and clear explanation of what the project does.
-            -   **Tech Stack:** List key technologies.
-            -   **Installation & Usage:** Step-by-step guides.
-            -   **Structure:** Brief overview of the project structure.
+        **1. CLASSIFICATION & STRUCTURE:**
+        - **Auto-Detect Project Type:** Analyze the files to classify the project as:
+            - **Library**: Focus on API Reference, Installation, and Usage.
+            - **Web App**: Focus on Setup, Deployment, and Tech Stack.
+            - **CLI**: Focus on Commands, Installation, and Options.
+            - **Script**: Focus on Requirements and Usage.
+        - Adapt the sections based on this classification.
 
-            **STYLE RULES:**
-            -   Use **Pure Markdown**.
-            -   **Swiss Style:** Minimalist, clean, direct, and highly professional. Avoid emojis unless strictly necessary for the brand.
+        **2. TECHNICAL BADGES:**
+        - Detect the tech stack (languages, frameworks, tools) from the code.
+        - Generate Shields.io badges at the very top of the README using style=flat-square.
+        - Example: ![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react)
 
-            **OUTPUT FORMAT:**
-            -   Return **ONLY** the raw Markdown content.
-            -   Do **NOT** wrap the output in code blocks (markdown).
-            -   Do **NOT** include conversational text ("Here is the readme...").
+        **3. LANGUAGE DETECTION:**
+        - Detect the primary natural language used in code comments and strings.
+        - Write the entire README in that language.
 
-            CODE CONTEXT:
-            ${safeContext}
-        `;
+        **4. OUTPUT RESTRICTIONS:**
+        - Return ONLY pure Markdown.
+        - No "Here is your README" or any other conversational text.
+        - No markdown code block wraps (e.g., \`\`\`markdown ... \`\`\`).
+        - Use a minimalist, professional "Swiss" tone. Avoid excessive emojis.
+
+        **5. ATTRIBUTION:**
+        - ALWAYS end the README with the following badge:
+        [![Made with Preamble](https://img.shields.io/badge/Made_by-PREAMBLE-FF0000?style=flat-square)](https://preamble.pages.dev)`;
 
         console.log('🚀 Enviando prompt a Groq (Llama 3 70B)...');
 
         const completion = await openai.chat.completions.create({
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Project Name: ${repoName || 'Unknown Project'}\n\nCODE CONTEXT:\n${safeContext}` }
+            ],
             model: "llama-3.3-70b-versatile",
-            temperature: 0.5,
+            temperature: 0.3,
         });
 
-        const text = completion.choices[0]?.message?.content;
+        let text = completion.choices[0]?.message?.content?.trim();
 
         if (!text) {
             throw new Error("La IA devolvió una respuesta vacía.");
+        }
+
+        // Implementación del Viral Loop (Footer Badge) persistente
+        const footerBadge = '[![Made with Preamble](https://img.shields.io/badge/Made_by-PREAMBLE-FF0000?style=flat-square)](https://preamble.pages.dev)';
+        if (!text.includes('https://preamble.pages.dev')) {
+            text = text + '\n\n' + footerBadge;
         }
 
         console.log('✅ Documentación generada con éxito.');
