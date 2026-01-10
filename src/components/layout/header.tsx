@@ -12,12 +12,12 @@ export function Header({ session }: HeaderProps) {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 border-b border-black bg-white">
             <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                <a href="/" className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                     <div className="p-1 border border-black transition-colors duration-200 group-hover:bg-[#FF3333] group-hover:text-white">
                         <img src="/isotipo-favicon.png" alt="Logo PREAMBLE" className="w-6 h-6 transition-all duration-200 group-hover:brightness-0 group-hover:invert" />
                     </div>
                     <span className="font-bold tracking-[0.2em] text-xl text-black uppercase">PREAMBLE</span>
-                </div>
+                </a>
 
                 <nav className="hidden md:flex items-center gap-8">
                     <a href="https://github.com/gontzi/preamble" target="_blank" rel="noopener noreferrer" className="text-sm font-mono uppercase text-black hover:text-[#FF3333] transition-colors">

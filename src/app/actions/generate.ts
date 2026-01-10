@@ -4,9 +4,9 @@ import OpenAI from 'openai';
 import { Octokit } from 'octokit';
 import { auth } from '@/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { SupabaseService } from '@/lib/supabaseService';
 
 export async function generateDocs(context: string, repoName?: string): Promise<{ content: string; savedToDb: boolean }> {
-    const supabase = getSupabaseAdmin();
     console.log('🏁 Iniciando proceso de generación de IA con Groq/Llama3...');
 
     // Truncar contexto para evitar errores de payload y mejorar latencia
@@ -87,20 +87,23 @@ export async function generateDocs(context: string, repoName?: string): Promise<
         }
 
         console.log('✅ Documentación generada con éxito.');
-
         let savedToDb = false;
         const session: any = await auth();
 
-        if (session?.user?.email && repoName) {
+        if (session?.user?.id && repoName) {
             console.log('💾 Guardando en Supabase para:', session.user.email);
-            const { error } = await supabase.from('generated_docs').insert({
-                user_email: session.user.email,
-                repo_name: repoName,
-                content: text,
-            });
 
-            if (error) {
-                console.error('❌ Error guardando en DB:', error);
+            // Intentar detectar stack básico para metadata
+            const metadata = {
+                platform: repoName.includes('/') ? 'github' : 'zip',
+                generated_at: new Date().toISOString(),
+                model: "llama-3.3-70b-versatile"
+            };
+
+            const { error: saveError } = await SupabaseService.saveDocument(repoName, text, metadata);
+
+            if (saveError) {
+                console.error('❌ Error guardando en DB:', saveError);
             } else {
                 savedToDb = true;
                 console.log('✅ Guardado en DB correctamente.');

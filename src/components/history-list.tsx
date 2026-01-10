@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { getHistory, deleteHistoryItem, type HistoryItem } from '@/app/actions/history';
+import { getHistory, deleteHistoryItem } from '@/app/actions/history';
+import type { HistoryItem } from '@/types/database';
 import { FileText, Trash2, Edit2, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
