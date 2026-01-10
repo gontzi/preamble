@@ -6,46 +6,44 @@ export class SupabaseService {
     private static supabase = getSupabaseAdmin();
 
     static async saveDocument(repoName: string, content: string, techMetadata: Record<string, any> = {}) {
+        // 1. Fuente de la Verdad: Obtener sesión activa de Supabase/Auth
+        // Nota: Se usa 'auth()' de NextAuth que es el manejador actual, 
+        // pero asegurando que extraemos el ID real para la vinculación.
         const session = await auth();
-        if (!session?.user?.id || !session?.user?.email) {
-            console.error('No authenticated user found for saving document');
+        const realUserId = session?.user?.id;
+
+        if (!realUserId) {
+            console.error('❌ Error: Intento de guardado sin sesión activa.');
             return { error: 'Unauthorized' };
         }
 
-        const userId = session.user.id;
-        const userEmail = session.user.email;
-        const fullName = session.user.name;
-        const avatarUrl = session.user.image;
-
         try {
-            // Paso A: Check/Create User (Upsert)
+            // 2. Manejo de la Tabla public.users (UPSERT)
+            // Obtenemos el registro actual para conocer el generation_count existente
             const { data: userData, error: userError } = await this.supabase
                 .from('users')
                 .upsert({
-                    id: userId,
-                    email: userEmail,
-                    full_name: fullName,
-                    avatar_url: avatarUrl
-                }, { onConflict: 'id' })
+                    id: realUserId,
+                    email: session.user.email,
+                    full_name: session.user.name,
+                    avatar_url: session.user.image,
+                }, {
+                    onConflict: 'id',
+                    ignoreDuplicates: false
+                })
                 .select('generation_count')
                 .single();
 
-            if (userError) throw userError;
+            if (userError) {
+                console.error('❌ Error crítico en UPSERT de usuario:', userError.message);
+                return { error: `No se pudo vincular el usuario: ${userError.message}` };
+            }
 
-            // Paso B: Increment Usage
-            const currentCount = userData?.generation_count || 0;
-            const { error: updateError } = await this.supabase
-                .from('users')
-                .update({ generation_count: currentCount + 1 })
-                .eq('id', userId);
-
-            if (updateError) throw updateError;
-
-            // Paso C: Insert Doc
+            // 3. Insertar el documento en generated_docs usando el ID real
             const { data: docData, error: docError } = await this.supabase
                 .from('generated_docs')
                 .insert({
-                    user_id: userId,
+                    user_id: realUserId,
                     repo_name: repoName,
                     content: content,
                     metadata: techMetadata,
@@ -55,9 +53,20 @@ export class SupabaseService {
 
             if (docError) throw docError;
 
+            // 4. Actualizar el contador de generaciones (Incremento)
+            const newCount = (userData?.generation_count || 0) + 1;
+            const { error: countError } = await this.supabase
+                .from('users')
+                .update({ generation_count: newCount })
+                .eq('id', realUserId);
+
+            if (countError) {
+                console.warn('⚠️ No se pudo actualizar el generation_count:', countError.message);
+            }
+
             return { data: docData, error: null };
         } catch (error: any) {
-            console.error('Error in saveDocument:', error);
+            console.error('❌ Error crítico en saveDocument:', error);
             return { data: null, error: error.message };
         }
     }

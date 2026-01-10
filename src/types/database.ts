@@ -3,8 +3,8 @@ export interface User {
     email: string;
     full_name?: string;
     avatar_url?: string;
-    generation_count: number;
-    created_at: string;
+    generation_count?: number;
+    created_at?: string;
 }
 
 export interface GeneratedDoc {
