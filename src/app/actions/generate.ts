@@ -6,8 +6,8 @@ import { auth } from '@/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { SupabaseService } from '@/lib/supabaseService';
 
-export async function generateDocs(context: string, repoName?: string): Promise<{ content: string; savedToDb: boolean }> {
-    console.log('🏁 Iniciando proceso de generación de IA con Groq/Llama3...');
+export async function generateDocs(context: string, repoName?: string, tone: 'standard' | 'friendly' | 'formal' = 'standard'): Promise<{ content: string; savedToDb: boolean }> {
+    console.log(`🏁 Iniciando proceso de generación de IA con Groq/Llama3... Tone: ${tone}`);
 
     // Truncar contexto para evitar errores de payload y mejorar latencia
     // Llama 3 70B en Groq Free Tier tiene un límite estricto de TPM (aprox 6k-12k según carga).
@@ -31,10 +31,29 @@ export async function generateDocs(context: string, repoName?: string): Promise<
             baseURL: 'https://api.groq.com/openai/v1',
         });
 
+        // Define tone instruction
+        let toneInstruction = "";
+        switch (tone) {
+            case 'friendly':
+                toneInstruction = "Use a **Friendly** tone: Casual, use emojis, 'storytelling' style, and be enthusiastic. Speak directly to the community.";
+                break;
+            case 'formal':
+                toneInstruction = "Use a **Formal** tone: Academic, highly detailed, serious, and precise. Avoid contractions and casual language.";
+                break;
+            case 'standard':
+            default:
+                toneInstruction = "Use a **Standard** tone: Professional, concise, objective, and straight to the point.";
+                break;
+        }
+
         const systemPrompt = `You are an expert technical writer designated to create high-end documentation in a "Swiss Editorial" style.
 
         **CORE MISSION:**
         Analyze the provided code context and generate a README.md that is professional, minimalist, and perfectly tailored to the project type.
+
+        **CRITICAL INSTRUCTION: TONE**
+        You must write the documentation using a ${tone} tone.
+        ${toneInstruction}
 
         **1. CLASSIFICATION & STRUCTURE:**
         - **Auto-Detect Project Type:** Analyze the files to classify the project as:
@@ -44,22 +63,28 @@ export async function generateDocs(context: string, repoName?: string): Promise<
             - **Script**: Focus on Requirements and Usage.
         - Adapt the sections based on this classification.
 
-        **2. TECHNICAL BADGES:**
+        **2. PROJECT STRUCTURE (MANDATORY)**
+        - You MUST include a section titled '## 📂 Project Structure'.
+        - Based on the code provided (imports, file paths, and logic), infer and generate a likely directory structure tree using ASCII format.
+        - Use icons for folders and files if possible.
+        - Place this section early in the document, after the Introduction/Tech Stack.
+
+        **3. TECHNICAL BADGES:**
         - Detect the tech stack (languages, frameworks, tools) from the code.
         - Generate Shields.io badges at the very top of the README using style=flat-square.
         - Example: ![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react)
 
-        **3. LANGUAGE DETECTION:**
+        **4. LANGUAGE DETECTION:**
         - Detect the primary natural language used in code comments and strings.
         - Write the entire README in that language.
 
-        **4. OUTPUT RESTRICTIONS:**
+        **5. OUTPUT RESTRICTIONS:**
         - Return ONLY pure Markdown.
         - No "Here is your README" or any other conversational text.
         - No markdown code block wraps (e.g., \`\`\`markdown ... \`\`\`).
-        - Use a minimalist, professional "Swiss" tone. Avoid excessive emojis.
+        - Keep the aesthetic minimalist and high-end.
 
-        **5. ATTRIBUTION:**
+        **6. ATTRIBUTION:**
         - ALWAYS end the README with the following badge:
         [![Made with Preamble](https://img.shields.io/badge/Made_by-PREAMBLE-FF0000?style=flat-square)](https://preamble.pages.dev)`;
 
@@ -97,7 +122,8 @@ export async function generateDocs(context: string, repoName?: string): Promise<
             const metadata = {
                 platform: repoName.includes('/') ? 'github' : 'zip',
                 generated_at: new Date().toISOString(),
-                model: "llama-3.3-70b-versatile"
+                model: "llama-3.3-70b-versatile",
+                tone: tone
             };
 
             const { error: saveError } = await SupabaseService.saveDocument(repoName, text, metadata);

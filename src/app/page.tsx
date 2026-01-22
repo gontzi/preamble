@@ -27,9 +27,12 @@ import { Badge } from '@/components/ui/badge';
 
 type Mode = 'github' | 'zip' | 'picker';
 
+import { ToneSelector, type Tone } from '@/components/tone-selector'; // Add import
+
 export default function PreamblePage() {
   const { data: session } = useSession();
   const [mode, setMode] = useState<Mode>(session ? 'picker' : 'github');
+  const [tone, setTone] = useState<Tone>('standard'); // Add Tone State
   const [githubUrl, setGithubUrl] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,8 +69,8 @@ export default function PreamblePage() {
       const context = await processZipFile(file);
       addLog(`Extracted context size: ${(context.length / 1024).toFixed(2)} KB`);
 
-      addLog('Sending context to Gemini 1.5 Flash...');
-      const { content } = await generateDocs(context, file.name);
+      addLog('Sending context to Intelligence Engine...');
+      const { content } = await generateDocs(context, file.name, tone); // Pass tone
 
       addLog('Documentation generated successfully.');
       setResult(content);
@@ -95,7 +98,7 @@ export default function PreamblePage() {
 
       const repoName = targetUrl.split('/').slice(-2).join('/');
       addLog('Refining documentation with AI...');
-      const { content } = await generateDocs(context, repoName);
+      const { content } = await generateDocs(context, repoName, tone); // Pass tone
 
       addLog('Generation complete.');
       setResult(content);
@@ -193,6 +196,8 @@ export default function PreamblePage() {
           </div>
 
           <div className="max-w-4xl mx-auto">
+            <ToneSelector value={tone} onChange={setTone} disabled={isGenerating} />
+
             {/* NEW: Unified Source Architecture */}
             <SourceSelector
               session={session}
